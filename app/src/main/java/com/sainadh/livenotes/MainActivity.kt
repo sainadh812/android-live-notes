@@ -338,7 +338,7 @@ private fun SettingsCard(
                     singleLine = true
                 )
                 Text(
-                    text = "Leave API key blank to use the embedded default or keep the key already saved on the device.",
+                    text = "Leave API key blank to use the embedded default for OpenAI, or enter a provider-specific key for DeepSeek/Qwen.",
                     color = Color(0xFF475569)
                 )
                 Text("Microphone source", fontWeight = FontWeight.SemiBold)

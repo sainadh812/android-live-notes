@@ -24,10 +24,18 @@ class ApiKeyStore(context: Context) {
         prefs.edit().putString(KEY_API, apiKey.trim()).apply()
     }
 
-    fun readApiKey(): String {
+    fun clearApiKey() {
+        prefs.edit().remove(KEY_API).apply()
+    }
+
+    fun readApiKey(provider: LlmProvider = readProvider()): String {
         val manualKey = prefs.getString(KEY_API, "").orEmpty().trim()
         if (manualKey.isNotBlank()) return manualKey
-        return BuildConfig.EMBEDDED_OPENAI_API_KEY.trim()
+        return if (provider == LlmProvider.OPENAI) {
+            BuildConfig.EMBEDDED_OPENAI_API_KEY.trim()
+        } else {
+            ""
+        }
     }
 
     fun saveProvider(provider: LlmProvider) {

@@ -25,10 +25,17 @@ class ConversationOrchestrator(
         if (!shouldSummarize(cleaned, isFinal, timestampMs, previousChunk)) return Result.success(Unit)
 
         return summarizeMutex.withLock {
-            val apiKey = apiKeyStore.readApiKey()
-            if (apiKey.isBlank()) return@withLock Result.failure(IllegalStateException("No API key configured"))
-
             val provider = apiKeyStore.readProvider()
+            val apiKey = apiKeyStore.readApiKey(provider)
+            if (apiKey.isBlank()) {
+                val message = if (provider == LlmProvider.OPENAI) {
+                    "No API key configured"
+                } else {
+                    "No API key configured for ${provider.displayName}"
+                }
+                return@withLock Result.failure(IllegalStateException(message))
+            }
+
             val model = apiKeyStore.readModel(provider)
             val existing = repository.getNote(dateKey)
             val transcriptWindow = repository.recentTranscript(dateKey, limit = 12)

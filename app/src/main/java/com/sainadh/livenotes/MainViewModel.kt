@@ -62,16 +62,22 @@ class MainViewModel(
             apiKeyStore.saveProvider(provider)
             apiKeyStore.saveModel(model.ifBlank { provider.defaultModel })
             apiKeyStore.saveAudioInputMode(audioInputMode)
-            if (apiKey.isNotBlank()) {
+            if (apiKey.isBlank()) {
+                apiKeyStore.clearApiKey()
+            } else {
                 apiKeyStore.saveApiKey(apiKey)
             }
-            _connectionStatus.value = "Settings saved. Tap Test AI connection to verify."
+            _connectionStatus.value = if (provider == LlmProvider.OPENAI && apiKey.isBlank()) {
+                "Settings saved. Using the embedded OpenAI key unless you enter a manual override."
+            } else {
+                "Settings saved. Tap Test AI connection to verify."
+            }
         }
     }
 
     fun testConnection(provider: LlmProvider, model: String, apiKey: String) {
         viewModelScope.launch {
-            val resolvedKey = apiKey.trim().ifBlank { apiKeyStore.readApiKey().trim() }
+            val resolvedKey = apiKey.trim().ifBlank { apiKeyStore.readApiKey(provider).trim() }
             if (resolvedKey.isBlank()) {
                 _connectionStatus.value = "Add an API key first."
                 return@launch
