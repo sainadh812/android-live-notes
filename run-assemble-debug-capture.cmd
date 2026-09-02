@@ -1,0 +1,6 @@
+@echo off
+cd /d C:\Users\91812\AppData\Local\hermes\hermes-agent\android-live-notes
+set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+C:\Users\91812\.gradle\wrapper\dists\gradle-8.11.1-bin\bpt9gzteqjrbo1mjrsomdt32c\gradle-8.11.1\bin\gradle.bat assembleDebug --console=plain --stacktrace > C:\Users\91812\AppData\Local\hermes\hermes-agent\android-live-notes\assemble-debug.log 2>&1
+exit /b %ERRORLEVEL%
