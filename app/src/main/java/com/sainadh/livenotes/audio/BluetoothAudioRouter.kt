@@ -47,12 +47,17 @@ class BluetoothAudioRouter(context: Context) {
             } ?: return false
             audioManager.setCommunicationDevice(device)
         } else {
+            val hasBluetoothAudioDevice = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                .any { candidate ->
+                    candidate.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                        candidate.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+                }
+            if (!hasBluetoothAudioDevice) return false
             @Suppress("DEPRECATION")
             audioManager.startBluetoothSco()
             @Suppress("DEPRECATION")
             audioManager.isBluetoothScoOn = true
-            @Suppress("DEPRECATION")
-            audioManager.isBluetoothScoOn
+            true
         }
     }
 

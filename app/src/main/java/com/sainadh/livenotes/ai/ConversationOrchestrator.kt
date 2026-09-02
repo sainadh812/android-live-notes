@@ -3,6 +3,7 @@ package com.sainadh.livenotes.ai
 import com.sainadh.livenotes.data.ApiKeyStore
 import com.sainadh.livenotes.data.DailyNote
 import com.sainadh.livenotes.data.NotesRepository
+import com.sainadh.livenotes.data.TranscriptChunk
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -18,9 +19,10 @@ class ConversationOrchestrator(
         if (cleaned.isBlank()) return
 
         val dateKey = repository.todayKey()
+        val previousChunk = repository.latestChunk(dateKey)
         repository.appendTranscript(dateKey, cleaned, isFinal, timestampMs)
 
-        if (!shouldSummarize(dateKey, cleaned, isFinal, timestampMs)) return
+        if (!shouldSummarize(cleaned, isFinal, timestampMs, previousChunk)) return
 
         summarizeMutex.withLock {
             val apiKey = apiKeyStore.readApiKey()
@@ -59,15 +61,15 @@ class ConversationOrchestrator(
         }
     }
 
-    private suspend fun shouldSummarize(
-        dateKey: String,
+    private fun shouldSummarize(
         latestText: String,
         isFinal: Boolean,
-        nowMs: Long
+        nowMs: Long,
+        previousChunk: TranscriptChunk?
     ): Boolean {
         if (isFinal) return true
         if (latestText.length > 160) return true
-        val lastChunk = repository.latestChunk(dateKey) ?: return true
+        val lastChunk = previousChunk ?: return true
         return nowMs - lastChunk.createdAtEpochMs > 30_000L
     }
 }

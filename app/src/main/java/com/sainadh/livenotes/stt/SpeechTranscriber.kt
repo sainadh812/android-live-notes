@@ -133,7 +133,12 @@ class SpeechTranscriber(
         mainHandler.postDelayed({
             if (running) {
                 recognizer?.cancel()
-                recognizer?.startListening(buildIntent())
+                recognizer?.destroy()
+                val freshRecognizer = SpeechRecognizer.createSpeechRecognizer(context).also {
+                    it.setRecognitionListener(this)
+                }
+                recognizer = freshRecognizer
+                freshRecognizer.startListening(buildIntent())
             }
         }, delayMs)
     }
