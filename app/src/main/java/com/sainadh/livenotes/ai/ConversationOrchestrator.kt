@@ -14,19 +14,19 @@ class ConversationOrchestrator(
 ) {
     private val summarizeMutex = Mutex()
 
-    suspend fun onTranscript(text: String, isFinal: Boolean, timestampMs: Long = System.currentTimeMillis()) {
+    suspend fun onTranscript(text: String, isFinal: Boolean, timestampMs: Long = System.currentTimeMillis()): Result<Unit> {
         val cleaned = text.trim()
-        if (cleaned.isBlank()) return
+        if (cleaned.isBlank()) return Result.success(Unit)
 
         val dateKey = repository.todayKey()
         val previousChunk = repository.latestChunk(dateKey)
         repository.appendTranscript(dateKey, cleaned, isFinal, timestampMs)
 
-        if (!shouldSummarize(cleaned, isFinal, timestampMs, previousChunk)) return
+        if (!shouldSummarize(cleaned, isFinal, timestampMs, previousChunk)) return Result.success(Unit)
 
-        summarizeMutex.withLock {
+        return summarizeMutex.withLock {
             val apiKey = apiKeyStore.readApiKey()
-            if (apiKey.isBlank()) return
+            if (apiKey.isBlank()) return@withLock Result.failure(IllegalStateException("No API key configured"))
 
             val provider = apiKeyStore.readProvider()
             val model = apiKeyStore.readModel(provider)
@@ -36,7 +36,7 @@ class ConversationOrchestrator(
                     val prefix = if (chunk.isFinal) "final" else "partial"
                     "[$prefix] ${chunk.text}"
                 }
-            if (transcriptWindow.isBlank()) return
+            if (transcriptWindow.isBlank()) return@withLock Result.success(Unit)
 
             val result = chatCompletionClient.summarizeConversation(
                 LlmSummaryRequest(
@@ -47,16 +47,22 @@ class ConversationOrchestrator(
                     runningContext = existing?.runningContext.orEmpty(),
                     recentTranscript = transcriptWindow
                 )
-            ).getOrElse { return }
+            )
 
-            repository.upsertNote(
-                DailyNote(
-                    dateKey = dateKey,
-                    summary = result.summary,
-                    runningContext = result.runningContext,
-                    actionItems = result.actionItems,
-                    updatedAtEpochMs = timestampMs
-                )
+            result.fold(
+                onSuccess = { summary ->
+                    repository.upsertNote(
+                        DailyNote(
+                            dateKey = dateKey,
+                            summary = summary.summary,
+                            runningContext = summary.runningContext,
+                            actionItems = summary.actionItems,
+                            updatedAtEpochMs = timestampMs
+                        )
+                    )
+                    Result.success(Unit)
+                },
+                onFailure = { error -> Result.failure(error) }
             )
         }
     }

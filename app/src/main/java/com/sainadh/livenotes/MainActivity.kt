@@ -92,6 +92,7 @@ private fun LiveNotesScreen(
     val latestTranscript by viewModel.latestTranscript.collectAsStateWithLifecycle(lifecycle = activityLifecycle)
     val connectionStatus by viewModel.connectionStatus.collectAsStateWithLifecycle(lifecycle = activityLifecycle)
     val currentAudioRoute by ServiceStateTracker.audioRoute.collectAsStateWithLifecycle(lifecycle = activityLifecycle)
+    val lastSummaryError by ServiceStateTracker.lastSummaryError.collectAsStateWithLifecycle(lifecycle = activityLifecycle)
     var apiKey by rememberSaveable { mutableStateOf("") }
     var selectedProvider by rememberSaveable { mutableStateOf(viewModel.currentProvider()) }
     var selectedModel by rememberSaveable { mutableStateOf(viewModel.currentModel()) }
@@ -148,6 +149,9 @@ private fun LiveNotesScreen(
                         }
                     }
                 )
+            }
+            if (!lastSummaryError.isNullOrBlank()) {
+                item { SummaryErrorCard(message = lastSummaryError!!) }
             }
             item { TodaySummaryCard(todayNote = todayNote) }
             item { ActionItemsCard(todayNote = todayNote) }
@@ -232,6 +236,24 @@ private fun HeaderCard(
             Text(
                 text = if (latestTranscript.isBlank()) "Latest transcript will appear here once listening starts." else latestTranscript,
                 color = Color(0xFF0F172A)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SummaryErrorCard(message: String) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Note summarization stopped", fontWeight = FontWeight.SemiBold, color = Color(0xFF991B1B))
+            Text(message, color = Color(0xFF7F1D1D))
+            Text(
+                "Transcript is still being captured. Check your API key or connection, then keep talking to retry.",
+                color = Color(0xFF991B1B)
             )
         }
     }

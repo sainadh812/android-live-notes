@@ -20,9 +20,10 @@ Android app in Kotlin for continuous background speech capture, live transcript 
 
 ## Setup
 
-1. Open `android-live-notes/` in Android Studio.
-2. If you want to rebuild from Windows without Android Studio, run one of the helper scripts in this folder such as `run-assemble-debug.cmd`, `run-assemble-release.cmd`, `run-test-debug.cmd`, or `run-lint-debug.cmd`.
-3. Run on a physical device with microphone + Bluetooth permissions.
+1. Open `android-live-notes/` in Android Studio, or use the Gradle wrapper directly from a terminal (`gradlew.bat` is committed — no separate Gradle install needed, just a JDK 17+ and the Android SDK).
+2. Helper scripts in this folder wrap common Gradle tasks: `run-assemble-debug.cmd`, `run-assemble-release.cmd`, `run-test-debug.cmd`, `run-lint-debug.cmd`, `run-gradle-version.cmd`, `run-clean-builds.cmd` (full build+test+lint pass), and `-capture` variants that redirect output to a `.log` file in this folder. All resolve paths relative to themselves, so they work regardless of where the repo is cloned.
+   - If you're behind a corporate HTTP proxy, the scripts already set `JAVA_OPTS` for `webproxy.ext.ti.com:80` — edit or remove that line in each script if your network differs.
+3. Run on a physical device with microphone + Bluetooth permissions, or on an emulator (`adb install app/build/outputs/apk/debug/app-debug.apk`).
 4. On first launch, enter the AI provider and API key in the app and save.
 5. Grant microphone, notification, and Bluetooth permissions.
 

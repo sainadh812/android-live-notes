@@ -19,3 +19,5 @@ captures/
 output-metadata.json
 
 /test-script-output.txt
+*.log
+gradle-*-bin.zip

@@ -28,6 +28,7 @@ object ServiceStateTracker {
     val listening = MutableStateFlow(false)
     val latestTranscript = MutableStateFlow("")
     val audioRoute = MutableStateFlow("Not listening")
+    val lastSummaryError = MutableStateFlow<String?>(null)
 }
 
 class ForegroundListeningService : Service(), SpeechTranscriber.Listener {
@@ -59,6 +60,7 @@ class ForegroundListeningService : Service(), SpeechTranscriber.Listener {
             buildNotification(getString(R.string.notification_listening_title), "Preparing microphone")
         )
         ServiceStateTracker.listening.value = true
+        ServiceStateTracker.lastSummaryError.value = null
         val app = application as LiveNotesApplication
         val selectedInputMode = app.appContainer.secureSettings.readAudioInputMode()
         val resolvedRoute = bluetoothAudioRouter?.activate(selectedInputMode) ?: "Phone microphone"
@@ -93,7 +95,15 @@ class ForegroundListeningService : Service(), SpeechTranscriber.Listener {
         ServiceStateTracker.latestTranscript.value = text
         serviceScope.launch {
             val app = application as LiveNotesApplication
-            app.appContainer.conversationOrchestrator.onTranscript(text, isFinal)
+            val result = app.appContainer.conversationOrchestrator.onTranscript(text, isFinal)
+            result.fold(
+                onSuccess = { ServiceStateTracker.lastSummaryError.value = null },
+                onFailure = { error ->
+                    val message = error.message ?: error.javaClass.simpleName
+                    ServiceStateTracker.lastSummaryError.value = message
+                    updateNotification("Summary error: $message")
+                }
+            )
         }
         updateNotification(text)
     }

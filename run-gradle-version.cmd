@@ -1,10 +1,10 @@
 @echo off
+rem Prints the resolved Gradle version (sanity check for the wrapper + JDK setup).
 
-cd /d C:\Users\91812\AppData\Local\hermes\hermes-agent\android-live-notes
+cd /d "%~dp0"
 
-set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
-
+if not defined JAVA_HOME set "JAVA_HOME=C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"
 set "PATH=%JAVA_HOME%\bin;%PATH%"
 
-C:\Users\91812\.gradle\wrapper\dists\gradle-8.11.1-bin\bpt9gzteqjrbo1mjrsomdt32c\gradle-8.11.1\bin\gradle.bat --version
-
+call "%~dp0gradlew.bat" --version
+exit /b %ERRORLEVEL%

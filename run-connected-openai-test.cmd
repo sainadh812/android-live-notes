@@ -1,5 +1,13 @@
 @echo off
-cd /d C:\Users\91812\AppData\Local\hermes\hermes-agent\android-live-notes
-set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
+rem Runs the live-network OpenAI connectivity instrumented test on a connected
+rem device/emulator. Requires ADB device attached and network reachable.
+
+cd /d "%~dp0"
+
+if not defined JAVA_HOME set "JAVA_HOME=C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"
 set "PATH=%JAVA_HOME%\bin;%PATH%"
-C:\Users\91812\.gradle\wrapper\dists\gradle-8.11.1-bin\bpt9gzteqjrbo1mjrsomdt32c\gradle-8.11.1\bin\gradle.bat connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.sainadh.livenotes.OpenAiConnectionInstrumentedTest --console=plain --stacktrace
+
+set "JAVA_OPTS=-Dhttp.proxyHost=webproxy.ext.ti.com -Dhttp.proxyPort=80 -Dhttps.proxyHost=webproxy.ext.ti.com -Dhttps.proxyPort=80"
+
+call "%~dp0gradlew.bat" connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.sainadh.livenotes.OpenAiConnectionInstrumentedTest --console=plain --stacktrace
+exit /b %ERRORLEVEL%

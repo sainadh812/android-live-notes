@@ -1,6 +1,13 @@
 @echo off
-cd /d C:\Users\91812\AppData\Local\hermes\hermes-agent\android-live-notes
-set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
+rem Clean build: debug + release APKs, unit tests, lint, all in one pass.
+rem Useful for a full pre-commit sanity check.
+
+cd /d "%~dp0"
+
+if not defined JAVA_HOME set "JAVA_HOME=C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"
 set "PATH=%JAVA_HOME%\bin;%PATH%"
-call C:\Users\91812\.gradle\wrapper\dists\gradle-8.11.1-bin\bpt9gzteqjrbo1mjrsomdt32c\gradle-8.11.1\bin\gradle.bat clean assembleDebug assembleRelease testDebugUnitTest lintDebug --console=plain --stacktrace
+
+set "JAVA_OPTS=-Dhttp.proxyHost=webproxy.ext.ti.com -Dhttp.proxyPort=80 -Dhttps.proxyHost=webproxy.ext.ti.com -Dhttps.proxyPort=80"
+
+call "%~dp0gradlew.bat" clean assembleDebug assembleRelease testDebugUnitTest lintDebug --console=plain --stacktrace
 exit /b %ERRORLEVEL%
