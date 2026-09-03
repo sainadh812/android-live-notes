@@ -13,6 +13,9 @@ import com.sainadh.livenotes.data.DailyNote
 import com.sainadh.livenotes.data.NotesRepository
 import com.sainadh.livenotes.service.ForegroundListeningService
 import com.sainadh.livenotes.service.ServiceStateTracker
+import com.sainadh.livenotes.stt.ModelDownloadManager
+import com.sainadh.livenotes.stt.ModelDownloadState
+import com.sainadh.livenotes.stt.NemotronQuant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +26,8 @@ import kotlinx.coroutines.launch
 class MainViewModel(
     application: Application,
     private val repository: NotesRepository,
-    private val apiKeyStore: ApiKeyStore
+    private val apiKeyStore: ApiKeyStore,
+    private val modelDownloadManager: ModelDownloadManager
 ) : AndroidViewModel(application) {
     private val _connectionStatus = MutableStateFlow("Save settings, then test the AI connection.")
     val connectionStatus: StateFlow<String> = _connectionStatus.asStateFlow()
@@ -51,6 +55,8 @@ class MainViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = ""
     )
+
+    val modelDownloadState: StateFlow<ModelDownloadState> = modelDownloadManager.modelDownloadState
 
     fun saveSettings(
         provider: LlmProvider,
@@ -110,6 +116,10 @@ class MainViewModel(
         }
     }
 
+    fun downloadNemotronModel(quant: NemotronQuant) {
+        modelDownloadManager.downloadModel(quant)
+    }
+
     fun hasApiKey(): Boolean = apiKeyStore.readApiKey().isNotBlank()
 
     fun currentProvider(): LlmProvider = apiKeyStore.readProvider()
@@ -132,7 +142,8 @@ class MainViewModel(
             return MainViewModel(
                 application = application,
                 repository = application.appContainer.repository,
-                apiKeyStore = application.appContainer.secureSettings
+                apiKeyStore = application.appContainer.secureSettings,
+                modelDownloadManager = application.appContainer.modelDownloadManager
             ) as T
         }
     }

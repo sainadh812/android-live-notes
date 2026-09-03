@@ -10,22 +10,28 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import java.util.Locale
 
-class SpeechTranscriber(
-    private val context: Context,
-    private val listener: Listener
-) : RecognitionListener {
+interface SpeechTranscriber {
+    fun start()
+    fun stop()
+    fun destroy()
+
     interface Listener {
         fun onTranscript(text: String, isFinal: Boolean)
         fun onStateChanged(state: String)
         fun onError(reason: String)
     }
+}
 
+class AndroidSpeechTranscriber(
+    private val context: Context,
+    private val listener: SpeechTranscriber.Listener
+) : SpeechTranscriber, RecognitionListener {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var recognizer: SpeechRecognizer? = null
     private var running = false
     private var consecutiveRecoverableErrors = 0
 
-    fun start() {
+    override fun start() {
         if (running) return
         running = true
         consecutiveRecoverableErrors = 0
@@ -44,7 +50,7 @@ class SpeechTranscriber(
         }
     }
 
-    fun stop() {
+    override fun stop() {
         running = false
         consecutiveRecoverableErrors = 0
         mainHandler.post {
@@ -53,7 +59,7 @@ class SpeechTranscriber(
         }
     }
 
-    fun destroy() {
+    override fun destroy() {
         running = false
         consecutiveRecoverableErrors = 0
         mainHandler.post {

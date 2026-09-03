@@ -16,6 +16,8 @@ import com.sainadh.livenotes.LiveNotesApplication
 import com.sainadh.livenotes.MainActivity
 import com.sainadh.livenotes.R
 import com.sainadh.livenotes.audio.BluetoothAudioRouter
+import com.sainadh.livenotes.stt.AndroidSpeechTranscriber
+import com.sainadh.livenotes.stt.NemotronTranscriber
 import com.sainadh.livenotes.stt.SpeechTranscriber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,12 +38,13 @@ class ForegroundListeningService : Service(), SpeechTranscriber.Listener {
     private var transcriber: SpeechTranscriber? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var bluetoothAudioRouter: BluetoothAudioRouter? = null
+    private var usingNemotron = false
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
         bluetoothAudioRouter = BluetoothAudioRouter(this)
-        transcriber = SpeechTranscriber(this, this)
+        selectTranscriber()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -53,6 +56,23 @@ class ForegroundListeningService : Service(), SpeechTranscriber.Listener {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun selectTranscriber() {
+        transcriber?.destroy()
+        val app = application as LiveNotesApplication
+        val downloadedModel = app.appContainer.modelDownloadManager.findAnyDownloaded()
+        if (downloadedModel != null) {
+            usingNemotron = true
+            transcriber = NemotronTranscriber(
+                context = this,
+                listener = this,
+                modelPath = downloadedModel.file.absolutePath
+            )
+        } else {
+            usingNemotron = false
+            transcriber = AndroidSpeechTranscriber(this, this)
+        }
+    }
 
     private fun startListening() {
         startForeground(
@@ -66,8 +86,10 @@ class ForegroundListeningService : Service(), SpeechTranscriber.Listener {
         val resolvedRoute = bluetoothAudioRouter?.activate(selectedInputMode) ?: "Phone microphone"
         ServiceStateTracker.audioRoute.value = resolvedRoute
         acquireWakeLock()
+        selectTranscriber()
         transcriber?.start()
-        updateNotification("Using $resolvedRoute")
+        val engineLabel = if (usingNemotron) "Nemotron local model" else "Android speech recognizer"
+        updateNotification("Using $engineLabel on $resolvedRoute")
     }
 
     private fun stopListeningAndSelf() {
@@ -113,6 +135,7 @@ class ForegroundListeningService : Service(), SpeechTranscriber.Listener {
     }
 
     override fun onError(reason: String) {
+        ServiceStateTracker.lastSummaryError.value = reason
         updateNotification(reason)
     }
 

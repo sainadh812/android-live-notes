@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -48,6 +49,8 @@ import com.sainadh.livenotes.ai.LlmProvider
 import com.sainadh.livenotes.audio.AudioInputMode
 import com.sainadh.livenotes.data.DailyNote
 import com.sainadh.livenotes.service.ServiceStateTracker
+import com.sainadh.livenotes.stt.ModelDownloadState
+import com.sainadh.livenotes.stt.NemotronQuant
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -91,6 +94,7 @@ private fun LiveNotesScreen(
     val isListening by viewModel.isListening.collectAsStateWithLifecycle(lifecycle = activityLifecycle)
     val latestTranscript by viewModel.latestTranscript.collectAsStateWithLifecycle(lifecycle = activityLifecycle)
     val connectionStatus by viewModel.connectionStatus.collectAsStateWithLifecycle(lifecycle = activityLifecycle)
+    val modelDownloadState by viewModel.modelDownloadState.collectAsStateWithLifecycle(lifecycle = activityLifecycle)
     val currentAudioRoute by ServiceStateTracker.audioRoute.collectAsStateWithLifecycle(lifecycle = activityLifecycle)
     val lastSummaryError by ServiceStateTracker.lastSummaryError.collectAsStateWithLifecycle(lifecycle = activityLifecycle)
     var apiKey by rememberSaveable { mutableStateOf("") }
@@ -98,6 +102,7 @@ private fun LiveNotesScreen(
     var selectedModel by rememberSaveable { mutableStateOf(viewModel.currentModel()) }
     var selectedAudioInputMode by rememberSaveable { mutableStateOf(viewModel.currentAudioInputMode()) }
     var showSettings by rememberSaveable { mutableStateOf(!viewModel.hasApiKey()) }
+    var selectedNemotronQuantName by rememberSaveable { mutableStateOf(NemotronQuant.Q4_K_M.name) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -125,6 +130,8 @@ private fun LiveNotesScreen(
         }
     }
 
+    val selectedNemotronQuant = NemotronQuant.valueOf(selectedNemotronQuantName)
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color(0xFFF7FAFC)
@@ -148,6 +155,14 @@ private fun LiveNotesScreen(
                             permissionLauncher.launch(requiredPermissions())
                         }
                     }
+                )
+            }
+            item {
+                NemotronModelCard(
+                    selectedQuant = selectedNemotronQuant,
+                    modelDownloadState = modelDownloadState,
+                    onSelectQuant = { selectedNemotronQuantName = it.name },
+                    onDownload = { viewModel.downloadNemotronModel(it) }
                 )
             }
             if (!lastSummaryError.isNullOrBlank()) {
@@ -242,6 +257,73 @@ private fun HeaderCard(
 }
 
 @Composable
+private fun NemotronModelCard(
+    selectedQuant: NemotronQuant,
+    modelDownloadState: ModelDownloadState,
+    onSelectQuant: (NemotronQuant) -> Unit,
+    onDownload: (NemotronQuant) -> Unit
+) {
+    val downloading = modelDownloadState as? ModelDownloadState.Downloading
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("On-device speech model (Nemotron 3.5)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = when (modelDownloadState) {
+                    ModelDownloadState.Idle -> "No local GGUF model is downloaded yet. When one is present, the service prefers it over the Android cloud recognizer."
+                    is ModelDownloadState.Downloading -> "Downloading ${modelDownloadState.quant.displayName} to private app storage."
+                    is ModelDownloadState.Ready -> "Downloaded ${modelDownloadState.quant.displayName}. Stop and start listening again to switch to the local model."
+                    is ModelDownloadState.Error -> "Download failed: ${modelDownloadState.message}"
+                },
+                color = Color(0xFF475569)
+            )
+            QuantSelector(selectedQuant = selectedQuant, onSelectQuant = onSelectQuant)
+            Button(
+                onClick = { onDownload(selectedQuant) },
+                enabled = downloading == null,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (downloading == null) "Download selected quant" else "Download in progress")
+            }
+            if (downloading?.progressFraction != null) {
+                LinearProgressIndicator(
+                    progress = { downloading.progressFraction ?: 0f },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = "${formatSize(downloading.bytesDownloaded)} / ${formatSize(downloading.totalBytes ?: 0L)}",
+                    color = Color(0xFF475569)
+                )
+            }
+            if (modelDownloadState is ModelDownloadState.Ready) {
+                Text(
+                    text = "Stored at: ${modelDownloadState.absolutePath}",
+                    color = Color(0xFF0F766E)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuantSelector(
+    selectedQuant: NemotronQuant,
+    onSelectQuant: (NemotronQuant) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        NemotronQuant.entries.forEach { quant ->
+            val selected = quant == selectedQuant
+            Button(onClick = { onSelectQuant(quant) }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (selected) "✓ ${quant.displayName}" else quant.displayName)
+            }
+        }
+    }
+}
+
+@Composable
 private fun SummaryErrorCard(message: String) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
@@ -252,7 +334,7 @@ private fun SummaryErrorCard(message: String) {
             Text("Note summarization stopped", fontWeight = FontWeight.SemiBold, color = Color(0xFF991B1B))
             Text(message, color = Color(0xFF7F1D1D))
             Text(
-                "Transcript is still being captured. Check your API key or connection, then keep talking to retry.",
+                "Transcript or on-device recognition hit an error. Check the model download, API key, or connection, then retry.",
                 color = Color(0xFF991B1B)
             )
         }
@@ -420,5 +502,18 @@ private fun NoteCard(title: String, body: String) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(body)
         }
+    }
+}
+
+private fun formatSize(bytes: Long): String {
+    if (bytes <= 0L) return "0 B"
+    val kib = 1024.0
+    val mib = kib * 1024.0
+    val gib = mib * 1024.0
+    return when {
+        bytes >= gib -> String.format("%.2f GB", bytes / gib)
+        bytes >= mib -> String.format("%.1f MB", bytes / mib)
+        bytes >= kib -> String.format("%.1f KB", bytes / kib)
+        else -> "$bytes B"
     }
 }

@@ -6,6 +6,7 @@ import com.sainadh.livenotes.ai.ConversationOrchestrator
 import com.sainadh.livenotes.data.ApiKeyStore
 import com.sainadh.livenotes.data.NotesDatabase
 import com.sainadh.livenotes.data.NotesRepository
+import com.sainadh.livenotes.stt.ModelDownloadManager
 
 class LiveNotesApplication : Application() {
     lateinit var appContainer: AppContainer
@@ -26,6 +27,7 @@ class AppContainer(application: Application) {
     )
 
     val chatCompletionClient = ChatCompletionClient()
+    val modelDownloadManager = ModelDownloadManager(application)
 
     val conversationOrchestrator = ConversationOrchestrator(
         repository = notesRepository,
